@@ -9,7 +9,78 @@
 <link rel="preload" href="images/font.png" as="image">
 <link rel="stylesheet" href="css/fnaf.css">
 </head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>Five Nights at Freddy's</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="css/fnaf.css">
+    
+    <!-- THE INDEXEDDB SAVE BRIDGE -->
+    <script>
+        // 1. Ask iOS for permanent storage
+        if (navigator.storage && navigator.storage.persist) {
+            navigator.storage.persist();
+        }
+
+        // 2. Open the database
+        const dbRequest = indexedDB.open("FNAF_DB", 1);
+        let db;
+        dbRequest.onupgradeneeded = (e) => {
+            db = e.target.result;
+            db.createObjectStore("saves");
+        };
+        dbRequest.onsuccess = (e) => {
+            db = e.target.result;
+            // Restore save when the page loads
+            const tx = db.transaction("saves", "readonly");
+            const store = tx.objectStore("saves");
+            const req = store.get("fnaf1_save");
+            req.onsuccess = () => {
+                if (req.result) {
+                    localStorage.setItem("fnaf1_save", req.result);
+                    console.log("Save restored from IndexedDB!");
+                }
+            };
+        };
+
+        // 3. Intercept localStorage.setItem
+        const originalSetItem = localStorage.setItem;
+        localStorage.setItem = function(key, value) {
+            // Run the normal save
+            originalSetItem.apply(this, arguments);
+            
+            // If the game is saving, ALSO save it to IndexedDB
+            if (key.includes("fnaf")) {
+                if (db) {
+                    const tx = db.transaction("saves", "readwrite");
+                    tx.objectStore("saves").put(value, key);
+                    console.log("Game saved to IndexedDB:", key);
+                }
+            }
+        };
+    </script>
+</head>
 <body>
+<div id="stage">
+    <canvas id="game" tabindex="0"></canvas>
+    <div class="tools">
+        <button id="mute" type="button" aria-label="Sound" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"></path><path class="on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"></path><path class="off" d="M17 9l5 6M22 9l-5 6"></path></svg>
+        </button>
+        <button id="fullscreen" type="button" aria-label="Full screen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"></path></svg>
+        </button>
+    </div>
+</div>
+<!-- Load the game -->
+<script src="js/fnaf.js" defer=""></script>
+</body>
+</html>
+  <body>
 <div id="stage">
 <canvas id="game" tabindex="0" aria-label="Five Nights at Freddy's"></canvas>
 <div class="tools">
